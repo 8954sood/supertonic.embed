@@ -7,7 +7,9 @@ Give it a recording of a few seconds and it writes a style JSON in the same
 format as the presets the model ships with. Drop that file in beside F1..F5 and
 M1..M5 and the model speaks in that voice.
 
-**Requirements:** an NVIDIA GPU with 4 GB or more, and CUDA.
+**Requirements:** an NVIDIA GPU and CUDA. The default settings optimize eight
+recordings at once and need about 10 GB; set `timbre.batch: 1` in
+`src/config.yaml` to run in 2.5 GB.
 
 ## Responsible Use
 
@@ -101,8 +103,10 @@ python src/run_extract_style_ttl_dp_batch.py
 ```
 
 That reads [src/wavlist.txt](src/wavlist.txt), which points at the five example
-recordings in [examples/](examples/), and writes `styles/<id>.json` for each.
-About three minutes per recording on an RTX 3090.
+recordings in [examples/](examples/), and writes `styles/<id>.json` for each,
+plus `styles/extraction_report.json` with the loss, step count, chosen preset
+and speaking-rate fit of every recording. The five examples take about ten
+minutes on an RTX 3090.
 
 To run it on your own audio, put one recording per line in a list of your own.
 A line may name an id after a pipe; otherwise the file's own name is used. Blank
@@ -216,24 +220,38 @@ sentences. Any single-clip word error rate from this model is unreliable, and
 the same preset and sentence can swing by fifteen points across noise seeds,
 which is why the figures above are pooled over 100 sentences per speaker.
 
-## What is in here
+## What is in the repository
 
 ```
-src/
-├── config.yaml                          every tunable value
-├── config.py                            reads it, plus the structural constants
-├── text_tokenizer.py                    text to the token ids the model expects
-├── style_file.py                        the style JSON: read, write, presets, sphere
-├── frozen_tts.py                        the released ONNX as frozen differentiable torch
-├── wavlm_loss.py                        the WavLM layer-4 objective
-├── invert_ttl.py                        recover the timbre
-├── invert_dp.py                         recover the duration
-├── run_extract_style_ttl_dp_batch.py    the one thing you run
-└── wavlist.txt                          the default input list
-
-examples/     five Seed-TTS Eval references (Common Voice, CC0)
-models/       the released model, downloaded separately
+.
+├── README.md
+├── LICENSE                              MIT
+├── requirements.txt
+├── .gitignore
+├── src/
+│   ├── config.yaml                      every tunable value
+│   ├── config.py                        reads it, plus the structural constants
+│   ├── text_tokenizer.py                text to the token ids the model expects
+│   ├── style_file.py                    the style JSON: read, write, presets, sphere
+│   ├── frozen_tts.py                    the released ONNX as frozen differentiable torch
+│   ├── wavlm_loss.py                    the WavLM layer-4 objective
+│   ├── invert_ttl.py                    recover the timbre
+│   ├── invert_dp.py                     recover the duration
+│   ├── run_extract_style_ttl_dp_batch.py  the one thing you run
+│   └── wavlist.txt                      the default input list
+├── examples/
+│   ├── 21.wav
+│   ├── 22.wav
+│   ├── 23.wav                           five Seed-TTS Eval references
+│   ├── 24.wav                           (Common Voice, CC0)
+│   ├── 25.wav
+│   └── README.md                        where each one came from
+└── models/
+    └── README.md                        how to download the model; the weights are not here
 ```
+
+That is the whole repository. The model weights, WavLM, and anything the
+extractor writes are downloaded or created locally and stay out of it.
 
 ## Models used
 
