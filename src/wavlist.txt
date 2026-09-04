@@ -1,0 +1,9 @@
+# Five Seed-TTS Eval references (Common Voice, CC0), enough to see the
+# tool work end to end. One recording per line; add "|name" to choose
+# the output filename.
+
+examples/21.wav|21
+examples/22.wav|22
+examples/23.wav|23
+examples/24.wav|24
+examples/25.wav|25

@@ -1,0 +1,38 @@
+# Defaults for style extraction. Every tunable value lives here; the code holds
+# only what is structural (sample rate, vector shapes).
+
+model:
+  onnx_dir: models/onnx                # the four released ONNX modules
+  presets: models/voice_styles         # F1-F5, M1-M5, the shipped style vectors
+  total_step: 5                        # flow-matching sampling steps
+  speed: 1.05                          # SupertonicTTS speed factor
+  seed: 42                             # fixes the noise latents, so runs repeat
+
+timbre:                                # style_ttl, inverted against WavLM
+  layer: 4                             # WavLM-Large layer; speaker identity peaks here
+  threshold: 0.24                      # stop the moment the loss reaches this
+  lr: 2.0e-4
+  lr_patience: 200                     # ReduceLROnPlateau
+  lr_factor: 0.5
+  grad_clip: 1.0
+  batch: 8                             # speakers per forward pass; 16 fits in 24 GB
+
+duration:                              # style_dp, matched to the reference speaking rate
+  tolerance: 0.03                      # converged when |rate_synth / rate_ref - 1| is under this
+  max_iters: 8                         # fixed-point budget; not a bound on the answer
+  max_log_step: 0.6931                 # ln 2: at most one octave of duration per iteration
+  min_response_move: 0.10              # measure the model's slope only over moves this large
+  saturation_move: 0.20                # judge saturation only past this total excursion
+  saturation_slope: -0.2               # d log(rate) / d log(duration) above this = saturated
+  invert_steps: 300                    # Adam steps for the duration-predictor inversion
+  invert_lr: 5.0e-3
+  invert_prior: 1.0e-2                 # pull toward the starting dp, so the answer stays plausible
+
+# The five sentences the timbre objective rotates through, so a style vector
+# cannot overfit one phoneme set.
+prompts:
+  - The sun sets behind the mountains, painting the sky in shades of pink and orange.
+  - Technology has transformed the way we communicate with each other around the world.
+  - She walked through the quiet forest, listening to the birds singing in the trees.
+  - Scientific research requires patience, careful observation, and rigorous analysis.
+  - The old library contained thousands of books collected over many generations.

@@ -1,27 +1,39 @@
 # SupertonicTTS Voice Style Extractor
 
-This repo will guide you to extract voice style embeddings from any WAV file for SupertonicTTS,
-without the official (unreleased) style encoder.
+Recover a voice style for SupertonicTTS from a plain WAV file, without the
+official style encoder, which was never released.
 
-Put in a 3~10 second voice sample, and get a voice style JSON that makes SupertonicTTS speak in that voice.
+Give it a recording of a few seconds and it writes a style JSON in the same
+format as the presets the model ships with. Drop that file in beside F1..F5 and
+M1..M5 and the model speaks in that voice.
 
-**Requirements:** NVIDIA GPU with 4GB+ VRAM, CUDA support.
+**Requirements:** an NVIDIA GPU with 4 GB or more, and CUDA.
 
 ## Responsible Use
 
-**This is research code released for academic purposes only.** Voice cloning technology can be misused for serious harm. By using this repository, you agree to the following.
+**This is research code, released for academic purposes.** Voice cloning can be
+misused for serious harm. By using this repository you agree to the following.
 
-- **Obtain explicit consent** from any speaker whose voice you intend to clone. Cloning a real person's voice without permission may be illegal in your jurisdiction.
-- **Do not use this tool** for non-consensual voice impersonation, voice phishing (vishing), fraud, harassment, defamation, generation of misleading political or commercial content, or circumvention of voice-based authentication.
-- **Do not target identifiable individuals** (including public figures) without their explicit permission.
-- **Disclose synthetic audio** as AI-generated when distributing it, ideally with a watermark or provenance metadata (e.g., C2PA).
+- **Obtain explicit consent** from anyone whose voice you clone. Cloning a real
+  person's voice without permission may be illegal where you live.
+- **Do not use this tool** for non-consensual impersonation, voice phishing,
+  fraud, harassment, defamation, misleading political or commercial content, or
+  to defeat voice authentication.
+- **Do not target identifiable people**, public figures included, without their
+  explicit permission.
+- **Disclose synthetic audio** as AI-generated when you distribute it, ideally
+  with a watermark or provenance metadata such as C2PA.
 
-The author disclaims all liability for misuse. Evaluation in the accompanying paper uses VCTK (CC BY 4.0) and the Common Voice subset of Seed-TTS Eval (CC0), does not target identifiable individuals, and releases no extracted style vector for any real person. If you observe misuse of this code, please open an issue.
+The author disclaims all liability for misuse. The evaluation behind the numbers
+below uses VCTK (CC BY 4.0) and the Common Voice subset of Seed-TTS Eval (CC0),
+targets no identifiable individual, and releases no extracted style vector for
+any real person. If you see this code being misused, please open an issue.
 
-### How it works:
+## How it works
+
 ```
               ┌───────────────────────────────────────────┐
-              │           TTS Pipeline (PyTorch)          │
+              │           TTS pipeline (PyTorch)          │
 ┌───────────┐ │ ┌─────────┐  ┌───────────┐  ┌───────────┐ │ ┌─────────┐
 │   style   │→│ │  Text   │→ │  Vector   │→ │  Vocoder  │ │→│ gen WAV │
 │  vector   │ │ │ Encoder │  │ Estimator │  │           │ │ └────┬────┘
@@ -40,243 +52,244 @@ The author disclaims all liability for misuse. Evaluation in the accompanying pa
       "update style to be more similar"
 ```
 
-1. Auto-selects the closest preset style (F1~F5, M1~M5) via WavLM layer-4 distance
-2. Synthesizes WAV via TTS, compares with target WAV using WavLM layer-4 features
-3. Updates style vector via gradient descent until convergence (early stop at 0.30)
+A style has two halves, and they are recovered by different means because they
+carry different things.
 
-### Convergence Guide:
-Optimization stops at a loss of **0.30**. That number is not arbitrary: synthesizing two
-different sentences from the *same* preset leaves a residual loss caused by content rather
-than by speaker mismatch, and across the ten presets that floor spans **0.15 to 0.41**
-(mean 0.27) at layer 4. Stopping at 0.30 puts the residual below 62% of genuine
-same-voice pairs.
+**Timbre** (`style_ttl`, 50x256) is the only half that reaches the audio. It is
+recovered by gradient descent: start at the closest shipped preset, synthesize,
+compare against the target with time-pooled WavLM layer-4 statistics, step
+downhill, and put all 50 token rows back on the unit sphere. Stop when the loss
+reaches 0.24.
 
-The floor is layer-specific, so changing `--layer` requires re-running
-`src/calibrate_threshold.py` before trusting any threshold.
+**Duration** (`style_dp`, 8x16) only tells the duration predictor how long an
+utterance runs, so WavLM cannot see it: a time-pooled objective discards exactly
+the information tempo lives in. It is matched instead. The speaking rate of the
+reference is measured on audio alone, and the duration style is inverted through
+the frozen duration predictor until the synthesis speaks at the same rate.
 
-Pushing further hurts. Continuing to 0.24 raises ECAPA similarity by 0.036 but drives
-mean WER from 1.1% to 5.2%, and WavLM-SV similarity slightly *down* — speaker matching
-and intelligibility trade off against each other past this point.
+Nothing in the model is trained. Only the style vector moves.
 
-## Quick Start
+### Why the unit sphere
 
-### 1. Install dependencies
+Every token row of every shipped preset has unit L2 norm, to float precision.
+That is the surface the withheld encoder writes onto. Free gradient descent
+leaves it, and the further the vector drifts the worse the synthesis gets.
+Renormalizing each row after every step keeps the iterate on the manifold the
+model was trained to consume.
+
+### Why 0.24
+
+Synthesizing two different sentences from the *same* preset still leaves a
+residual loss, caused by the content rather than by any difference of speaker.
+Across the ten presets that floor spans 0.15 to 0.41 at layer 4. Anything inside
+that band is already at same-voice distance, so 0.24 is a stopping point, not a
+convergence point. Over 147 speakers every run reached it, in a median of 460
+steps.
+
+The floor is layer-specific, so changing the layer invalidates the threshold.
+
+## Quick start
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Download SupertonicTTS models
-Download the `onnx/` and `voice_styles/` folders from [Supertone/supertonic-2](https://huggingface.co/Supertone/supertonic-2) and place them under `models/`.
+Download the model as described in [models/README.md](models/README.md), then:
 
-### 3. Prepare your voice sample
-Put your WAV files (3~16 seconds each, one speaker per file) in `wavs/`. Any sample rate
-works; they are resampled to 44.1 kHz automatically.
-
-### 4. Extract
 ```bash
-python src/run_batch_extract.py --speakers seedtts --limit 1 --save-wav --out results/mine
+python src/run_extract_style_ttl_dp_batch.py
 ```
-This is the single entry point, for one voice or for hundreds. It picks the closest of
-the ten released presets as a starting point, optimizes the style vector, and stops at the
-calibrated threshold.
 
-| Flag | Meaning |
-|------|---------|
-| `--layer` | WavLM layer for the objective (default 4) |
-| `--threshold` | early-stopping loss (default 0.30; re-calibrate if you change the layer) |
-| `--batch` | speakers optimized simultaneously (default 8, max ~16 on 24 GB) |
-| `--limit` | cap the number of speakers |
-| `--save-wav` | also write `ref.wav` plus five synthesized prompts per speaker |
-| `--resume-from` | continue a previous run at a stricter threshold |
-| `--max-steps` / `--plateau` | step cap, and give-up point after no improvement |
+That reads [src/wavlist.txt](src/wavlist.txt), which points at the five example
+recordings in [examples/](examples/), and writes `styles/<id>.json` for each.
+About three minutes per recording on an RTX 3090.
 
-### 5. Use the extracted style
-Each speaker gets `results/mine/styles/<id>.json`, in the same format SupertonicTTS
-consumes. See `legacy/main.py` for an inference example.
+To run it on your own audio, put one recording per line in a list of your own.
+A line may name an id after a pipe; otherwise the file's own name is used. Blank
+lines and `#` comments are skipped.
+
+```
+my_voice.wav
+recordings/take_03.wav|alice
+```
+
+```bash
+python src/run_extract_style_ttl_dp_batch.py my_list.txt --out styles
+```
+
+| Option | Meaning |
+|---|---|
+| `--out` | where the style JSONs go (default `styles`) |
+| `--config` | use a config file other than `src/config.yaml` |
+| `--timbre-only` | skip the duration stage and leave `style_dp` at the preset's |
+
+Everything else is set in [src/config.yaml](src/config.yaml): the WavLM layer,
+the stopping loss, the learning rate, how many recordings descend together, the
+sampling steps, and the prompts the objective rotates through.
+
+Any sample rate works; audio is resampled on the way in. The recording has to be
+mostly speech. The objective pools over time, so a file that is largely silence
+gives a target describing the room rather than a voice.
 
 ## Extracting many voices at once
 
-The same driver optimizes several style vectors in a single forward pass, so a corpus
-costs little more than a handful of speakers:
+Several style vectors descend in a single forward pass. Each one reaches only
+its own output, so stacking B of them and summing their losses gives every
+vector exactly the gradient it would have received alone; summing rather than
+averaging is what keeps the effective learning rate per recording the same as a
+solo run. All four ONNX graphs take a dynamic batch dimension, and every
+recording uses the same prompt on a given step, so nothing needs padding.
 
-```bash
-python src/run_batch_extract.py --speakers seedtts --layer 4 --threshold 0.30 \
-                               --batch 16 --save-wav --out results/my_run
-```
+Measured on an RTX 3090 with 24 GB, on 5.4 s utterances:
 
-Each speaker's style vector only reaches its own output, so stacking B speakers and
-summing their per-speaker losses gives every vector exactly the gradient it would have
-received alone. The loss is summed rather than averaged, which keeps the effective
-learning rate per speaker identical to a solo run. All four ONNX graphs declare a dynamic
-batch dimension, and every speaker uses the same prompt on a given step, so no padding is
-needed.
+| batch | s/recording/step | speedup | peak VRAM |
+|---|---|---|---|
+| 1 | 0.465 | 1.0x | 2.5 GB |
+| 4 | 0.141 | 3.3x | 5.6 GB |
+| 8 | 0.090 | 5.2x | 9.8 GB |
+| 16 | 0.069 | 6.7x | 18.0 GB |
+| 24 | 0.337 | 1.4x | 26.1 GB, over the card, thrashes |
 
-Measured on an RTX 3090 (24 GB), 5.4 s utterances:
+About 1.03 GB per extra recording, so 16 is the practical maximum on 24 GB. Set
+it with `timbre.batch` in the config.
 
-| batch | s/speaker/step | speedup | peak VRAM |
-|-------|---------------|---------|-----------|
-| 1     | 0.465         | 1.0x    | 2.5 GB    |
-| 4     | 0.141         | 3.3x    | 5.6 GB    |
-| 8     | 0.090         | 5.2x    | 9.8 GB    |
-| 16    | 0.069         | 6.7x    | 18.0 GB   |
-| 24    | 0.337         | 1.4x    | 26.1 GB (exceeds VRAM, thrashes) |
+Two rules the batching respects. A recording that reaches the threshold leaves
+the batch immediately, because further descent walks its vector into territory
+the frozen model never saw. And a waiting recording takes its place at once, so
+the batch stays full.
 
-Roughly 1.03 GB per additional speaker. **16 is the practical maximum on 24 GB**; going
-higher buys little because the GPU is already saturated. This turns a 110-speaker run from
-about five hours into about one.
-
-Two details the batching has to respect, both handled by the driver:
-
-- A speaker that reaches the threshold stops being updated **immediately**. Left in the
-  batch it would keep descending past the threshold and drift into territory the TTS was
-  never trained on.
-- Finished speakers are replaced by queued ones so the batch stays full, and the prompt
-  rotation runs off a global counter so backfilling does not disturb it.
-
-Output is one JSON per input audio file under `<out>/styles/`. With `--save-wav` each speaker also gets a folder containing
-`ref.wav` (the original) alongside the five synthesized prompts.
-
-To continue an existing run at a stricter threshold instead of starting over:
-
-```bash
-python src/run_batch_extract.py --speakers seedtts --layer 4 --threshold 0.24 \
-                               --resume-from results/my_run --out results/my_run_t024
-```
-
-## How long does it take?
-1. Model loading & conversion (~30 seconds)
-2. Auto style selection (~1 minute, 10 styles compared)
-3. Optimization: ~3 minutes per speaker solo, or ~0.5 minutes per speaker at batch 16
+The duration stage runs one recording at a time, because the duration style sets
+the length of the audio and the recordings no longer share a tensor shape.
 
 ## Performance
-Evaluated on 154 speakers (110 VCTK + 44 Seed-TTS Common Voice) × 5 utterances = 770 samples:
 
-| | SIM (WavLM) ↑ | SIM (ECAPA) ↑ | SIM (ResNet) ↑ | WER ↓ | UTMOS ↑ |
-|---|---|---|---|---|---|
-| Nearest preset (no opt.) | 0.713 | 0.132 | 0.099 | 1.84% | 4.47 |
-| **Proposed method** | **0.836** | **0.413** | **0.401** | 3.19% | 4.23 |
+147 speakers, 103 from VCTK and 44 from the Common Voice subset of Seed-TTS
+Eval, each evaluated on 100 held-out sentences, 113,907 words per system.
+Similarity is cosine between speaker embeddings of the synthesis and the
+reference.
 
-Every speaker improves over its preset baseline under ECAPA and ResNet (154/154), and
-145/154 under WavLM-SV; Wilcoxon signed-rank p < 1e-24 on all three, paired effect size
-d_z = 2.70 / 2.82 / 1.32 (ECAPA / ResNet / WavLM-SV).
+| | SIM ECAPA ↑ | SIM ResNet ↑ | SIM WavLM-SV ↑ | WER ↓ |
+|---|---|---|---|---|
+| Nearest preset, no extraction | 0.129 | 0.095 | 0.703 | 6.00% |
+| Timbre extracted | 0.428 | 0.416 | 0.840 | 5.72% |
+| **Timbre and duration extracted** | **0.419** | **0.409** | **0.837** | **5.71%** |
 
-The WER mean sits on a long tail: the median is 0.00% and 107 of the 154 speakers
-transcribe with no error at all. See the caveat below.
+Extraction more than triples speaker similarity and costs no intelligibility:
+the extracted voices transcribe slightly better than the model's own presets do.
+That 6% floor is the frozen model dropping and repeating words on its own, not a
+cost of the method. See the caveat below.
 
-UTMOS is a *predicted* MOS, not a listening test, and it was trained on systems from
-earlier Blizzard and Voice Conversion Challenges, so absolute values here are out of
-domain. The useful reading is the paired one: the presets are style vectors the model
-shipped, so 4.23 against 4.47 means an extracted vector synthesizes at 95% of the level
-the model reaches from its own vectors, i.e. it lands inside the region the model was
-trained on. The median speaker gives up 0.10, at effect size d_z = 0.66 against 2.70 for
-the similarity gain on the same clips. (Real reference recordings score 3.90 under this
-predictor — it rates clean synthesis above natural speech, which is why the preset
-comparison, not the reference, is the anchor.)
+On the ten short prompts, five of which the optimization saw:
 
-For scale, ECAPA cosine similarity on this data runs from **0.118** between unrelated voices
-to **0.682** between two different recordings of one speaker (0.804 between two halves of a
-single recording, which also fixes the channel). The nearest preset sits at 0.132, essentially
-at the impostor floor; the extracted style reaches about 60% of the two-recording level.
-Almost all of the gain comes from the optimization, not from starting near a preset.
+| prompts | SIM ECAPA ↑ | WER ↓ |
+|---|---|---|
+| Five fitted | 0.483 | 1.13% |
+| Five held out | 0.473 | 1.62% |
 
-Reproduce with `src/measure_all.py`, `src/eval_simw.py`, `src/eval_utmos.py`,
-`src/speaker_ceiling.py`, `src/verification_operating_point.py` and `src/compute_stats.py`.
+Eleven thousandths of similarity is what generalization to unseen text costs.
+
+Duration recovery, as the distance between the synthesized and the reference
+speaking rate:
+
+| duration style | fitted prompts | held-out prompts |
+|---|---|---|
+| Preset | 9.4% | 11.9% |
+| Recovered | **2.0%** | **8.1%** |
+
+Similarity does not move, because `style_dp` never reaches the acoustic path. On
+held-out text the fitted tempo transfers about halfway: the rate detector counts
+syllable nuclei per second, which also depends on how dense the sentence is.
+
+A reference was used only if its own audio carries enough speech to describe a
+voice: a measured rate of at least 2.2 nuclei per second over the whole file,
+and crude signal-to-noise of at least 22 dB. That drops 7 of the 154 VCTK
+references, all of them mostly silence or mostly noise. The criterion looks at
+the reference alone, never at what the extraction produced.
 
 ### A caveat on WER
 
-SupertonicTTS drops and repeats words sporadically on its own, which the vendor has
-[acknowledged](https://github.com/supertone-inc/supertonic/issues/83) and addressed in
-Supertonic 3. Measuring the stock presets with no optimization at all, over 250 clips:
-mean WER 0.38%, but 0.8% of clips exceed 10% WER, and the same preset and sentence can
-swing by 15 points across noise seeds. Any single-clip WER from this model is therefore
-unreliable, and a per-speaker WER over five clips still carries real variance. Run
-`src/control_wer.py` to reproduce that baseline.
+SupertonicTTS drops and repeats words sporadically on its own, which the vendor
+has [acknowledged](https://github.com/supertone-inc/supertonic/issues/83) and
+addressed in Supertonic 3. The preset row above measures exactly that: the
+frozen model, its own shipped style vectors, 6.00% word error rate over 14,700
+sentences. Any single-clip word error rate from this model is unreliable, and
+the same preset and sentence can swing by fifteen points across noise seeds,
+which is why the figures above are pooled over 100 sentences per speaker.
 
-## File Structure
-
-All scripts are run from the repository root, e.g. `python src/run_batch_extract.py ...`.
+## What is in here
 
 ```
-src/                      # active code
-├── core.py                 ONNX->PyTorch conversion, WavLM objective, forward pass,
-│                          prompts, style I/O, metrics - shared by every script below
-├── helper.py               TTS wrapper and style-JSON I/O
-├── run_batch_extract.py    batched multi-speaker extraction (main entry point)
-├── prepare_vctk.py         VCTK speaker selection
-├── measure_all.py          ECAPA + ResNet similarity, WER, preset-gender accuracy
-├── eval_simw.py            WavLM-SV similarity
-├── eval_utmos.py           predicted naturalness (UTMOS), preset vs extracted
-├── eval_batch.py           single-run ECAPA similarity + WER
-├── calibrate_threshold.py  per-layer early-stopping threshold
-├── speaker_ceiling.py      empirical same-speaker ceiling / different-speaker floor
-├── verification_operating_point.py  EER and FAR acceptance rates
-├── control_wer.py          stock-preset WER baseline (model's own instability)
-├── diagnose_sim.py         similarity decomposition (real/synth domain gap)
-├── make_figs.py            manuscript figures
-└── compute_stats.py        significance tests and bootstrap CIs
+src/
+├── config.yaml                          every tunable value
+├── config.py                            reads it, plus the structural constants
+├── text_tokenizer.py                    text to the token ids the model expects
+├── style_file.py                        the style JSON: read, write, presets, sphere
+├── frozen_tts.py                        the released ONNX as frozen differentiable torch
+├── wavlm_loss.py                        the WavLM layer-4 objective
+├── invert_ttl.py                        recover the timbre
+├── invert_dp.py                         recover the duration
+├── run_extract_style_ttl_dp_batch.py    the one thing you run
+└── wavlist.txt                          the default input list
 
-models/                   # obtained from HuggingFace Supertone/supertonic-2
-├── onnx/                   duration_predictor, text_encoder, vector_estimator,
-│                           vocoder, tts.json, unicode_indexer.json
-└── voice_styles/           M1-M5.json, F1-F5.json (the 10 released presets)
-
-data/                     # corpora (not tracked)
-wavs/                     # Seed-TTS Eval reference audio
-
-results/                  # not tracked
-├── main_layer4/            the 154-speaker run behind every number above
-├── pilot_layer4/           layer-4 pilots (thr030, thr024, control_wer)
-├── _layer3_seedtts/        superseded layer-3 run; two Discussion pilots still cite it
-├── threshold_calibration.json
-└── speaker_ceiling.json
-
-legacy/                   # superseded scripts, kept for provenance only
-paper/                    # manuscript, ICASSP style files, figures
+examples/     five Seed-TTS Eval references (Common Voice, CC0)
+models/       the released model, downloaded separately
 ```
 
-## Models Used
+## Models used
 
 | Model | Role |
-|-------|------|
-| duration_predictor | Duration prediction (SupertonicTTS) |
-| text_encoder | Text encoding (SupertonicTTS) |
-| vector_estimator | Flow matching denoising (SupertonicTTS) |
-| vocoder | Latent to WAV (SupertonicTTS) |
-| WavLM-Large | Perceptual loss, layer 4 (microsoft/wavlm-large) |
+|---|---|
+| duration_predictor | how long each utterance runs (SupertonicTTS) |
+| text_encoder | text to embeddings (SupertonicTTS) |
+| vector_estimator | flow-matching denoiser (SupertonicTTS) |
+| vocoder | latent to waveform (SupertonicTTS) |
+| WavLM-Large | the objective, layer 4 (microsoft/wavlm-large) |
 
-## Technical Details
+## Technical notes
 
-### ONNX to PyTorch Conversion
-ONNX models are converted to PyTorch for gradient backpropagation:
-- onnxslim for model cleanup
-- Forced opset 17 (onnx2torch compatibility)
-- Clip node empty input fix
+### ONNX to PyTorch
+
+The released ONNX modules are converted so gradients can reach the style vector:
+onnxslim for cleanup, opset forced to 17 for onnx2torch, and trailing empty Clip
+inputs dropped. Every converted parameter is frozen.
 
 ### WavLM layer-4 feature matching
-[Chiu et al. (2025)](https://arxiv.org/abs/2501.05310) report that for WavLM-Large,
-speaker-identification accuracy peaks at **layer 4** (gender at layer 2, pitch at layer 1),
-so layer 4 is what we use. Their layer 0 is the CNN encoder output, which matches
-HuggingFace's `hidden_states` indexing, so `hidden_states[4]` is their layer 4.
 
-We compare time-averaged feature statistics (mean and standard deviation over the time
-axis) between generated and target audio. Collapsing the time axis is what makes the
-objective content-independent: the two clips can say different words. It is also the same
-statistics pooling that x-vector speaker embeddings use, which is why the objective
-transfers to speaker-verification metrics it never saw during optimization.
+[Chiu et al. (2025)](https://arxiv.org/abs/2501.05310) report that for
+WavLM-Large, speaker-identification accuracy peaks at layer 4, with gender at
+layer 2 and pitch at layer 1. Their layer 0 is the CNN encoder output, which
+matches HuggingFace's `hidden_states` indexing, so `hidden_states[4]` is their
+layer 4.
 
-### Style Space
-- `style_ttl` [1, 50, 256] = 12,800 parameters (timbre, optimized)
-- `style_dp` [1, 8, 16] = 128 parameters (rhythm/duration, frozen)
+The objective compares the mean and standard deviation over time of that layer.
+Collapsing the time axis is what makes it content-independent: the two clips may
+say different words. It is also the statistics pooling x-vector speaker
+embeddings use, which is why matching it transfers to speaker-verification
+metrics it never saw.
 
-Male and female voices occupy different regions of the style space, and starting from the
-nearest preset converges fastest. It is a convenience rather than a requirement, though:
-a zero-vector start still reaches ECAPA 0.50 against 0.59 for the preset start, and even
-starting from a preset of the opposite vocal category reaches 0.46 — all far above the
-0.13 preset baseline. The optimizer recovers from a poor start rather than failing.
+### Style space
+
+- `style_ttl` [1, 50, 256], 12,800 numbers, the timbre. It enters the text
+  encoder and the vector estimator, so it is the only part that reaches the
+  audio.
+- `style_dp` [1, 8, 16], 128 numbers, the duration. It enters the duration
+  predictor and nothing else, so it sets how long an utterance runs and never
+  touches the timbre.
+
+Every row of both is kept at unit L2 norm, matching the shipped presets. Male
+and female voices occupy different regions of the space, and the extractor
+starts from the nearest preset.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). `src/text_tokenizer.py` is derived from the
+SupertonicTTS release, also MIT.
+
+The model weights are not distributed here. Supertone releases them under
+OpenRAIL-M, which carries use restrictions, and an extracted style vector is
+meaningless without them, so those restrictions apply to what you do with it.
 
 ## Citation
-
-If you use this work, please cite:
 
 ```bibtex
 @misc{kim2026supertonicembed,
@@ -292,5 +305,6 @@ If you use this work, please cite:
 
 Preprint: https://arxiv.org/abs/2607.25351
 
-## Looking for help?
-If you have any questions, please feel free to open an issue.
+## Questions
+
+Open an issue.

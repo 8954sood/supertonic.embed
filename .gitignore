@@ -219,9 +219,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-paper/
-data/
-models/
-wavs/
-results/
-legacy/
+
+# ---- this project -------------------------------------------------------
+# Public repo carries the extractor, its config, and five example recordings.
+# Everything below is local: corpora, model weights, experiment code, results.
+/data/
+/wavs/
+/results/
+/styles/
+/eval/
+/legacy/
+/paper/
+/paper_v2/
+/paper_v2_backup_*/
+/cmsworkshop
+
+# Model weights come from HuggingFace under their own licence; only the note
+# explaining how to get them is tracked.
+/models/*
+!/models/README.md
