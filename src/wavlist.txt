@@ -1,6 +1,5 @@
-# Five Seed-TTS Eval references. One recording per line; "|name" sets the output filename.
-examples/01.wav|01
-examples/02.wav|02
-examples/03.wav|03
-examples/04.wav|04
-examples/05.wav|05
+examples/01.wav
+examples/02.wav
+examples/03.wav
+examples/04.wav
+examples/05.wav

@@ -63,7 +63,7 @@ pip install -r requirements.txt
 Download the model as described in [models/README.md](models/README.md), then:
 
 ```bash
-python src/run_extract_style_ttl_dp_batch.py
+python src/run_extract_style_batch.py
 ```
 
 This reads [src/wavlist.txt](src/wavlist.txt), five example recordings, and
@@ -79,14 +79,13 @@ recordings/take_03.wav|alice
 ```
 
 ```bash
-python src/run_extract_style_ttl_dp_batch.py my_list.txt --out styles
+python src/run_extract_style_batch.py my_list.txt --out styles
 ```
 
 | Option | Meaning |
 |---|---|
 | `--out` | output directory (default `styles`) |
 | `--config` | a config file other than `src/config.yaml` |
-| `--timbre-only` | skip the duration stage |
 
 Everything else is in [src/config.yaml](src/config.yaml). Any sample rate
 works. The recording should be mostly speech: a file that is largely silence
@@ -116,8 +115,7 @@ Similarity is cosine between speaker embeddings of synthesis and reference.
 | | ECAPA ↑ | ResNet ↑ | WavLM-SV ↑ | WER ↓ |
 |---|---|---|---|---|
 | Nearest preset, no extraction | 0.129 | 0.095 | 0.703 | 6.00% |
-| Timbre extracted | 0.428 | 0.416 | 0.840 | 5.72% |
-| **Timbre and duration extracted** | **0.419** | **0.409** | **0.837** | **5.71%** |
+| **Extracted** | **0.419** | **0.409** | **0.837** | **5.71%** |
 
 Speaking-rate error against the reference: 9.4% with the preset duration,
 2.0% after recovery on the fitted prompts; 11.9% → 8.1% on held-out text.
@@ -144,7 +142,7 @@ silence or noise were excluded, judged on the reference audio alone.
 │   ├── wavlm_loss.py                      the objective
 │   ├── invert_ttl.py                      recover the timbre
 │   ├── invert_dp.py                       recover the duration
-│   ├── run_extract_style_ttl_dp_batch.py  the one thing you run
+│   ├── run_extract_style_batch.py         the one thing you run
 │   └── wavlist.txt                        default input list
 ├── examples/
 │   ├── 01.wav … 05.wav                    Seed-TTS Eval references

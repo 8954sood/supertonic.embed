@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-"""Turn text into the token ids and mask SupertonicTTS expects.
+"""Text to the token ids and mask SupertonicTTS expects.
 
-Taken from the SupertonicTTS release (MIT), unchanged in behaviour: the model
-was trained on exactly this normalization, so any edit here changes what the
-model hears. Only the parts the extractor uses are kept.
+From the SupertonicTTS release (MIT), behaviour unchanged: the model was trained
+on exactly this normalization, so any edit here changes what it hears.
 """
 import json
 import re
@@ -40,7 +38,7 @@ _ENDS_SENTENCE = re.compile(r"[.!?;:,'\"')\]}…。」』】〉》›»]$")
 
 
 def normalize_for_tts(text, lang):
-    """The release's own text cleanup, then the language tags it expects."""
+    """The release's own cleanup, then the language tags it expects."""
     if lang not in LANGS:
         raise ValueError(f"unsupported language {lang!r}; expected one of {LANGS}")
     text = _EMOJI.sub("", normalize("NFKD", text))
