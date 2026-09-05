@@ -1,0 +1,291 @@
+{
+ "languages": {
+  "en": "English",
+  "ko": "Korean",
+  "es": "Spanish",
+  "pt": "Portuguese",
+  "fr": "French"
+ },
+ "sentences": {
+  "en": [
+   "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "The train leaves early tomorrow, so we should pack our bags tonight."
+  ],
+  "ko": [
+   "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다."
+  ],
+  "es": [
+   "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche."
+  ],
+  "pt": [
+   "A neblina da manhã se dissipou devagar, e o vale inteiro se encheu de sol.",
+   "O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite."
+  ],
+  "fr": [
+   "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "Demain, le train part de bonne heure. Préparons donc nos valises ce soir."
+  ]
+ },
+ "voices": [
+  "01",
+  "02",
+  "03",
+  "04",
+  "05"
+ ],
+ "verification": "faster-whisper large-v3, transcript must equal the sentence after lower-casing and dropping punctuation (Korean: also spacing)",
+ "clips": {
+  "en1_01": {
+   "seed": 0,
+   "transcript": "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "seconds": 4.8
+  },
+  "en1_02": {
+   "seed": 1,
+   "transcript": "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "seconds": 5.32
+  },
+  "en1_03": {
+   "seed": 0,
+   "transcript": "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "seconds": 5.37
+  },
+  "en1_04": {
+   "seed": 7,
+   "transcript": "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "seconds": 4.55
+  },
+  "en1_05": {
+   "seed": 0,
+   "transcript": "The morning fog lifted slowly, and the whole valley filled with sunlight.",
+   "seconds": 5.55
+  },
+  "en2_01": {
+   "seed": 1,
+   "transcript": "The train leaves early tomorrow, so we should pack our bags tonight.",
+   "seconds": 4.54
+  },
+  "en2_02": {
+   "seed": 0,
+   "transcript": "The train leaves early tomorrow, so we should pack our bags tonight.",
+   "seconds": 5.03
+  },
+  "en2_03": {
+   "seed": 0,
+   "transcript": "The train leaves early tomorrow, so we should pack our bags tonight.",
+   "seconds": 5.08
+  },
+  "en2_04": {
+   "seed": 1,
+   "transcript": "The train leaves early tomorrow, so we should pack our bags tonight.",
+   "seconds": 4.32
+  },
+  "en2_05": {
+   "seed": 0,
+   "transcript": "The train leaves early tomorrow, so we should pack our bags tonight.",
+   "seconds": 5.26
+  },
+  "ko1_01": {
+   "seed": 0,
+   "transcript": "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "seconds": 5.93
+  },
+  "ko1_02": {
+   "seed": 0,
+   "transcript": "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "seconds": 6.55
+  },
+  "ko1_03": {
+   "seed": 0,
+   "transcript": "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "seconds": 6.72
+  },
+  "ko1_04": {
+   "seed": 5,
+   "transcript": "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "seconds": 5.56
+  },
+  "ko1_05": {
+   "seed": 0,
+   "transcript": "아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.",
+   "seconds": 6.82
+  },
+  "ko2_01": {
+   "seed": 0,
+   "transcript": "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.",
+   "seconds": 5.76
+  },
+  "ko2_02": {
+   "seed": 0,
+   "transcript": "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.",
+   "seconds": 6.36
+  },
+  "ko2_03": {
+   "seed": 0,
+   "transcript": "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.",
+   "seconds": 6.5
+  },
+  "ko2_04": {
+   "seed": 2,
+   "transcript": "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.",
+   "seconds": 5.42
+  },
+  "ko2_05": {
+   "seed": 2,
+   "transcript": "기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.",
+   "seconds": 6.62
+  },
+  "es1_01": {
+   "seed": 0,
+   "transcript": "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "seconds": 5.37
+  },
+  "es1_02": {
+   "seed": 0,
+   "transcript": "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "seconds": 5.95
+  },
+  "es1_03": {
+   "seed": 1,
+   "transcript": "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "seconds": 6.0
+  },
+  "es1_04": {
+   "seed": 3,
+   "transcript": "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "seconds": 5.05
+  },
+  "es1_05": {
+   "seed": 0,
+   "transcript": "La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.",
+   "seconds": 6.21
+  },
+  "es2_01": {
+   "seed": 0,
+   "transcript": "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.",
+   "seconds": 6.02
+  },
+  "es2_02": {
+   "seed": 0,
+   "transcript": "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.",
+   "seconds": 6.65
+  },
+  "es2_03": {
+   "seed": 0,
+   "transcript": "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.",
+   "seconds": 6.82
+  },
+  "es2_04": {
+   "seed": 1,
+   "transcript": "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.",
+   "seconds": 5.66
+  },
+  "es2_05": {
+   "seed": 1,
+   "transcript": "El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.",
+   "seconds": 6.93
+  },
+  "pt1_01": {
+   "seed": 0,
+   "transcript": "A neblina da manhã se dissipou devagar e o vale inteiro se encheu de sol.",
+   "seconds": 5.63
+  },
+  "pt1_02": {
+   "seed": 0,
+   "transcript": "A neblina da manhã se dissipou devagar e o vale inteiro se encheu de sol.",
+   "seconds": 6.22
+  },
+  "pt1_03": {
+   "seed": 0,
+   "transcript": "A neblina da manhã se dissipou devagar e o vale inteiro se encheu de sol.",
+   "seconds": 6.3
+  },
+  "pt1_04": {
+   "seed": 0,
+   "transcript": "A neblina da manhã se dissipou devagar e o vale inteiro se encheu de sol.",
+   "seconds": 5.27
+  },
+  "pt1_05": {
+   "seed": 0,
+   "transcript": "A neblina da manhã se dissipou devagar e o vale inteiro se encheu de sol.",
+   "seconds": 6.48
+  },
+  "pt2_01": {
+   "seed": 0,
+   "transcript": "O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite.",
+   "seconds": 5.17
+  },
+  "pt2_02": {
+   "seed": 3,
+   "transcript": "O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite.",
+   "seconds": 5.73
+  },
+  "pt2_03": {
+   "seed": 1,
+   "transcript": "O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite.",
+   "seconds": 5.78
+  },
+  "pt2_04": {
+   "seed": 2,
+   "transcript": "O trem sai cedo amanhã.  Então devemos arrumar as malas hoje à noite.",
+   "seconds": 4.86
+  },
+  "pt2_05": {
+   "seed": 2,
+   "transcript": "O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite.",
+   "seconds": 5.98
+  },
+  "fr1_01": {
+   "seed": 0,
+   "transcript": "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "seconds": 5.28
+  },
+  "fr1_02": {
+   "seed": 0,
+   "transcript": "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "seconds": 5.85
+  },
+  "fr1_03": {
+   "seed": 0,
+   "transcript": "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "seconds": 5.91
+  },
+  "fr1_04": {
+   "seed": 1,
+   "transcript": "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "seconds": 5.0
+  },
+  "fr1_05": {
+   "seed": 5,
+   "transcript": "Le brouillard du matin s'est levé lentement et toute la vallée s'est remplie de soleil.",
+   "seconds": 6.11
+  },
+  "fr2_01": {
+   "seed": 0,
+   "transcript": "Demain, le train part de bonne heure.  Préparons donc nos valises ce soir.",
+   "seconds": 5.0
+  },
+  "fr2_02": {
+   "seed": 0,
+   "transcript": "Demain, le train part de bonne heure.  Préparons donc nos valises ce soir.",
+   "seconds": 5.52
+  },
+  "fr2_03": {
+   "seed": 0,
+   "transcript": "Demain, le train part de bonne heure. Préparons donc nos valises ce soir.",
+   "seconds": 5.6
+  },
+  "fr2_04": {
+   "seed": 0,
+   "transcript": "Demain, le train part de bonne heure. Préparons donc nos valises ce soir.",
+   "seconds": 4.75
+  },
+  "fr2_05": {
+   "seed": 0,
+   "transcript": "Demain, le train part de bonne heure.  Préparons donc nos valises ce soir.",
+   "seconds": 5.76
+  }
+ }
+}

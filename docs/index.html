@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extracting Voice Styles from Frozen TTS Models via Gradient-Based Inverse Optimization</title>
+<style>
+  body { margin: 0; background: #fff; color: #222; font: 16px/1.55 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 44px 24px 64px; }
+  header { text-align: center; margin-bottom: 8px; }
+  header p { text-align: center; }
+  /* one line inside the column: the size follows the column width, never the viewport */
+  h1 { margin: 0 0 14px; line-height: 1.25; white-space: nowrap;
+        font-size: min(24px, calc((100vw - 48px) / 47)); }
+  @media (max-width: 720px) { h1 { white-space: normal; font-size: 21px; } }
+  .authors { font-size: 17px; margin: 0 0 4px; }
+  .affil { color: #444; margin: 0; }
+  .email { color: #444; margin: 0 0 18px; }
+  .links { margin: 0 0 8px; }
+  .links a { display: inline-block; margin: 0 6px; padding: 6px 16px; border: 1px solid #333; border-radius: 20px;
+              color: #333; text-decoration: none; font-size: 15px; }
+  .links a:hover { background: #333; color: #fff; }
+  h2 { font-size: 22px; margin: 40px 0 14px; padding-bottom: 6px; border-bottom: 1px solid #ddd; }
+  h3 { font-size: 18px; margin: 28px 0 8px; }
+  p { margin: 0 0 14px; text-align: justify; }
+  figure { margin: 18px 0 8px; text-align: center; }
+  figure img { max-width: 100%; }
+  figcaption { font-size: 14.5px; color: #444; text-align: justify; margin-top: 10px; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { border: 1px solid #e3e3e3; padding: 8px 6px; vertical-align: middle; }
+  th { background: #f6f6f6; font-weight: 600; }
+  td.text { width: 26%; text-align: left; }
+  td.ref { background: #fafafa; font-style: italic; color: #444; }
+  audio { width: 100%; min-width: 120px; height: 32px; }
+  a.json { font-weight: normal; font-size: 12.5px; color: #2b6cb0; text-decoration: none; }
+  a.json:hover { text-decoration: underline; }
+  .note { font-size: 14px; color: #555; margin-top: 36px; border-top: 1px solid #ddd; padding-top: 14px; }
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Extracting Voice Styles from Frozen TTS Models via Gradient-Based Inverse Optimization</h1>
+<p class="authors">Gyeongmin Kim</p>
+<p class="affil">Department of Computer Science, Hanyang University, Seoul, South Korea</p>
+<p class="email">kdrkdrkdr@hanyang.ac.kr</p>
+<p class="links"><a href="https://arxiv.org/abs/2607.25351">Paper</a><a href="https://github.com/kdrkdrkdr/supertonic.embed">Code</a></p>
+</header>
+
+<h2>Abstract</h2>
+<p>Some text-to-speech systems ship a synthesis model and preset style vectors but withhold the reference encoder that turns a recording into a style vector, so a user cannot obtain a style for a new voice. We recover that vector without the encoder by inverting the released pipeline with gradient descent: all weights stay frozen and only the style vector is optimized, against time-pooled WavLM statistics of one recording of the target voice. The objective discards the time axis, so no transcript is needed. Two constraints from the release make the recovered vector a complete, drop-in style: each row stays on the unit sphere where the presets lie, and the duration style, invisible to a time-pooled loss, is fitted to the recording's speaking rate. On SupertonicTTS, over 147 speakers and 100 held-out sentences each, ECAPA-TDNN similarity rises from 0.129 to 0.419, every speaker ends closer to its target than its preset, and the pooled word error rate stays below that of the presets. A verifier at its equal-error point accepts 52% of them as the target speaker, against 1% of the presets.</p>
+
+<h2>System Overview</h2>
+<p>The deployment pattern we target is a TTS release that publishes the synthesis model and preset style vectors while keeping the reference encoder private. Few systems fit it. Most either ship the speaker encoder with the weights (CosyVoice), prompt directly on reference audio without an explicit style vector (F5-TTS), or condition on discrete codec tokens (VALL-E). We study SupertonicTTS, which fits the pattern and is small enough to differentiate through end to end (Fig. 1).</p>
+<figure>
+  <img src="fig1.png" alt="System overview">
+  <figcaption><b>Fig. 1.</b> The timbre style <b>s</b><sub>ttl</sub> (dark) receives the gradient of the time-pooled WavLM loss and is projected back onto the unit sphere after every step. The duration style <b>s</b><sub>dp</sub> sets the latent length and is fitted so that the speaking rate of the synthesis matches the target. All modules of the TTS pipeline and of WavLM remain frozen; generated and target audio may carry different text.</figcaption>
+</figure>
+
+<h2>Demo</h2>
+<p>Five voices from <code>examples/01</code> to <code>05</code>, each extracted from one reference recording with the released code at its default settings, then used to synthesize two sentences in each of the five languages the model supports. The first row of every table is the reference recording the style was extracted from. None of these sentences were used during extraction. Every clip was transcribed with Whisper-large-v3 and matches its sentence word for word. Each extracted style can be downloaded as the JSON file the synthesizer reads (<code>style_ttl</code> and <code>style_dp</code>, same format as the shipped presets).</p>
+
+<h3>English</h3>
+<div class="wrap"><table>
+<tr><th></th><th>Speaker 01<br><a class="json" href="styles/01.json" download>style JSON</a></th><th>Speaker 02<br><a class="json" href="styles/02.json" download>style JSON</a></th><th>Speaker 03<br><a class="json" href="styles/03.json" download>style JSON</a></th><th>Speaker 04<br><a class="json" href="styles/04.json" download>style JSON</a></th><th>Speaker 05<br><a class="json" href="styles/05.json" download>style JSON</a></th></tr>
+<tr><td class="text ref">Reference recording</td><td><audio controls preload="none" src="audio/ref_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_05.mp3"></audio></td></tr>
+<tr><td class="text">The morning fog lifted slowly, and the whole valley filled with sunlight.</td><td><audio controls preload="none" src="audio/en1_01.mp3"></audio></td><td><audio controls preload="none" src="audio/en1_02.mp3"></audio></td><td><audio controls preload="none" src="audio/en1_03.mp3"></audio></td><td><audio controls preload="none" src="audio/en1_04.mp3"></audio></td><td><audio controls preload="none" src="audio/en1_05.mp3"></audio></td></tr>
+<tr><td class="text">The train leaves early tomorrow, so we should pack our bags tonight.</td><td><audio controls preload="none" src="audio/en2_01.mp3"></audio></td><td><audio controls preload="none" src="audio/en2_02.mp3"></audio></td><td><audio controls preload="none" src="audio/en2_03.mp3"></audio></td><td><audio controls preload="none" src="audio/en2_04.mp3"></audio></td><td><audio controls preload="none" src="audio/en2_05.mp3"></audio></td></tr>
+</table></div>
+
+<h3>Korean</h3>
+<div class="wrap"><table>
+<tr><th></th><th>Speaker 01<br><a class="json" href="styles/01.json" download>style JSON</a></th><th>Speaker 02<br><a class="json" href="styles/02.json" download>style JSON</a></th><th>Speaker 03<br><a class="json" href="styles/03.json" download>style JSON</a></th><th>Speaker 04<br><a class="json" href="styles/04.json" download>style JSON</a></th><th>Speaker 05<br><a class="json" href="styles/05.json" download>style JSON</a></th></tr>
+<tr><td class="text ref">Reference recording</td><td><audio controls preload="none" src="audio/ref_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_05.mp3"></audio></td></tr>
+<tr><td class="text">아침 안개가 천천히 걷히자 골짜기 전체가 햇살로 가득 찼습니다.</td><td><audio controls preload="none" src="audio/ko1_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ko1_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ko1_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ko1_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ko1_05.mp3"></audio></td></tr>
+<tr><td class="text">기차가 내일 아침 일찍 떠나니 오늘 밤에 짐을 챙겨 두어야 합니다.</td><td><audio controls preload="none" src="audio/ko2_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ko2_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ko2_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ko2_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ko2_05.mp3"></audio></td></tr>
+</table></div>
+
+<h3>Spanish</h3>
+<div class="wrap"><table>
+<tr><th></th><th>Speaker 01<br><a class="json" href="styles/01.json" download>style JSON</a></th><th>Speaker 02<br><a class="json" href="styles/02.json" download>style JSON</a></th><th>Speaker 03<br><a class="json" href="styles/03.json" download>style JSON</a></th><th>Speaker 04<br><a class="json" href="styles/04.json" download>style JSON</a></th><th>Speaker 05<br><a class="json" href="styles/05.json" download>style JSON</a></th></tr>
+<tr><td class="text ref">Reference recording</td><td><audio controls preload="none" src="audio/ref_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_05.mp3"></audio></td></tr>
+<tr><td class="text">La niebla de la mañana se levantó despacio y todo el valle se llenó de sol.</td><td><audio controls preload="none" src="audio/es1_01.mp3"></audio></td><td><audio controls preload="none" src="audio/es1_02.mp3"></audio></td><td><audio controls preload="none" src="audio/es1_03.mp3"></audio></td><td><audio controls preload="none" src="audio/es1_04.mp3"></audio></td><td><audio controls preload="none" src="audio/es1_05.mp3"></audio></td></tr>
+<tr><td class="text">El tren sale mañana temprano, así que deberíamos preparar las maletas esta noche.</td><td><audio controls preload="none" src="audio/es2_01.mp3"></audio></td><td><audio controls preload="none" src="audio/es2_02.mp3"></audio></td><td><audio controls preload="none" src="audio/es2_03.mp3"></audio></td><td><audio controls preload="none" src="audio/es2_04.mp3"></audio></td><td><audio controls preload="none" src="audio/es2_05.mp3"></audio></td></tr>
+</table></div>
+
+<h3>Portuguese</h3>
+<div class="wrap"><table>
+<tr><th></th><th>Speaker 01<br><a class="json" href="styles/01.json" download>style JSON</a></th><th>Speaker 02<br><a class="json" href="styles/02.json" download>style JSON</a></th><th>Speaker 03<br><a class="json" href="styles/03.json" download>style JSON</a></th><th>Speaker 04<br><a class="json" href="styles/04.json" download>style JSON</a></th><th>Speaker 05<br><a class="json" href="styles/05.json" download>style JSON</a></th></tr>
+<tr><td class="text ref">Reference recording</td><td><audio controls preload="none" src="audio/ref_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_05.mp3"></audio></td></tr>
+<tr><td class="text">A neblina da manhã se dissipou devagar, e o vale inteiro se encheu de sol.</td><td><audio controls preload="none" src="audio/pt1_01.mp3"></audio></td><td><audio controls preload="none" src="audio/pt1_02.mp3"></audio></td><td><audio controls preload="none" src="audio/pt1_03.mp3"></audio></td><td><audio controls preload="none" src="audio/pt1_04.mp3"></audio></td><td><audio controls preload="none" src="audio/pt1_05.mp3"></audio></td></tr>
+<tr><td class="text">O trem sai cedo amanhã, então devemos arrumar as malas hoje à noite.</td><td><audio controls preload="none" src="audio/pt2_01.mp3"></audio></td><td><audio controls preload="none" src="audio/pt2_02.mp3"></audio></td><td><audio controls preload="none" src="audio/pt2_03.mp3"></audio></td><td><audio controls preload="none" src="audio/pt2_04.mp3"></audio></td><td><audio controls preload="none" src="audio/pt2_05.mp3"></audio></td></tr>
+</table></div>
+
+<h3>French</h3>
+<div class="wrap"><table>
+<tr><th></th><th>Speaker 01<br><a class="json" href="styles/01.json" download>style JSON</a></th><th>Speaker 02<br><a class="json" href="styles/02.json" download>style JSON</a></th><th>Speaker 03<br><a class="json" href="styles/03.json" download>style JSON</a></th><th>Speaker 04<br><a class="json" href="styles/04.json" download>style JSON</a></th><th>Speaker 05<br><a class="json" href="styles/05.json" download>style JSON</a></th></tr>
+<tr><td class="text ref">Reference recording</td><td><audio controls preload="none" src="audio/ref_01.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_02.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_03.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_04.mp3"></audio></td><td><audio controls preload="none" src="audio/ref_05.mp3"></audio></td></tr>
+<tr><td class="text">Le brouillard du matin s&#x27;est levé lentement et toute la vallée s&#x27;est remplie de soleil.</td><td><audio controls preload="none" src="audio/fr1_01.mp3"></audio></td><td><audio controls preload="none" src="audio/fr1_02.mp3"></audio></td><td><audio controls preload="none" src="audio/fr1_03.mp3"></audio></td><td><audio controls preload="none" src="audio/fr1_04.mp3"></audio></td><td><audio controls preload="none" src="audio/fr1_05.mp3"></audio></td></tr>
+<tr><td class="text">Demain, le train part de bonne heure. Préparons donc nos valises ce soir.</td><td><audio controls preload="none" src="audio/fr2_01.mp3"></audio></td><td><audio controls preload="none" src="audio/fr2_02.mp3"></audio></td><td><audio controls preload="none" src="audio/fr2_03.mp3"></audio></td><td><audio controls preload="none" src="audio/fr2_04.mp3"></audio></td><td><audio controls preload="none" src="audio/fr2_05.mp3"></audio></td></tr>
+</table></div>
+
+<p class="note">Synthesizer: the public Supertonic 2 release (10 preset styles, no reference encoder). Reference recordings: the first five references of Seed-TTS Eval, Common Voice subset (CC0). Sentences were written for this page. The style files are provided for these five consented, CC0 recordings only. Do not clone a voice without the speaker's explicit consent.</p>
+</main>
+</body>
+</html>

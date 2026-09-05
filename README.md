@@ -7,6 +7,16 @@ put it beside `F1.json` … `M5.json` and the model speaks in that voice.
 **Requirements:** NVIDIA GPU with CUDA. The default settings need about 10 GB;
 `timbre.batch: 1` in `src/config.yaml` runs in 2.5 GB.
 
+## Demo
+
+<https://kdrkdrkdr.github.io/supertonic.embed/>: the five example voices that
+ship with the code, each speaking two sentences in English, Korean, Spanish,
+Portuguese and French from its extracted style, with the style JSON of each
+voice for download. Every clip was transcribed with Whisper-large-v3 and
+re-synthesized until the transcript matched the sentence exactly. The five
+recordings are CC0 Common Voice clips, and their style files are the only
+extracted styles released.
+
 ## Responsible use
 
 Research code, released for academic purposes. Voice cloning can do serious harm.
@@ -17,8 +27,8 @@ Research code, released for academic purposes. Voice cloning can do serious harm
 - No identifiable people, public figures included, without permission.
 - Label synthetic audio as AI-generated when you distribute it.
 
-The author disclaims all liability for misuse. No style vector of any real
-person is released here.
+The author disclaims all liability for misuse. The only extracted style vectors
+released are those of the five CC0 Common Voice example speakers on the demo page.
 
 ## How it works
 
@@ -68,7 +78,7 @@ python src/run_extract_style_batch.py
 
 This reads [src/wavlist.txt](src/wavlist.txt), five example recordings, and
 writes `styles/<id>.json` for each plus `styles/extraction_report.json`. About
-ten minutes on an RTX 3090.
+fifteen minutes on an RTX 3090.
 
 For your own audio, write a list with one recording per line. `|name` after the
 path sets the output filename; otherwise the file's name is used.
