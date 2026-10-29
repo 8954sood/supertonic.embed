@@ -8,7 +8,9 @@ body{font:16px/1.7 system-ui,sans-serif;max-width:800px;margin:48px auto;padding
 <p>이 맥의 Python과 Apple GPU로 계산합니다. 실제 역전파로 음색을 최적화하고, 전체 5문장 평균 손실로 결과를 확인합니다.</p>
 <p class="note">음성은 이 맥의 로컬 서버로만 전달됩니다. 첫 실행에는 모델 다운로드가 필요할 수 있습니다. 실험용이며, 목표 손실 도달과 목소리 품질은 보장되지 않습니다. 사용 권한이 있는 음성을 선택하세요.</p>
 <label>참조 음성 (0.3–15초, 최대 32 MB) <input id="audio" type="file" accept="audio/*"></label>
-<label>음색 최대 갱신 횟수 (0 = 손실 0.24 이하까지 무제한) <input id="iterations" type="number" min="0" max="10000" value="0"></label>
+<label>목표 손실 <input id="threshold" type="number" min="0" step="any" value="0.24"></label>
+<p class="note">0.1, 0.05 등 원하는 값으로 설정하세요. 전체 5문장 평균이 이 값 이하가 되면 음색 최적화를 마칩니다. 더 낮은 목표는 오래 걸리거나 도달하지 못할 수 있으며, 낮은 손실만으로 음질이 보장되지는 않습니다. 새 추출부터 적용됩니다.</p>
+<label>음색 최대 갱신 횟수 (0 = 설정한 목표까지 무제한) <input id="iterations" type="number" min="0" max="10000" value="0"></label>
 <label>속도 보정 단계별 최대 횟수 <input id="duration" type="number" min="1" max="1000" value="100"></label>
 <label><input id="skip" type="checkbox"> 속도 보정 생략 (음색만 추출)</label>
 <button id="start">MPS 추출 시작</button><button id="cancel" disabled>취소하고 최선 결과 유지</button>

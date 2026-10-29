@@ -32,8 +32,8 @@ def main():
     args = parser.parse_args()
     if args.iterations < 0 or args.validation_interval < 1 or args.duration_iterations < 1 or args.duration_rounds < 1:
         parser.error("Invalid iteration settings")
-    if not math.isfinite(args.threshold) or not math.isfinite(args.learning_rate) or args.learning_rate <= 0:
-        parser.error("Threshold and learning rate must be finite; learning rate must be positive")
+    if not math.isfinite(args.threshold) or args.threshold < 0 or not math.isfinite(args.learning_rate) or args.learning_rate <= 0:
+        parser.error("Threshold must be finite and nonnegative; learning rate must be finite and positive")
     # Set before importing modules that allocate tensors or resolve model paths.
     os.environ["SUPERTONIC_DEVICE"] = args.device
     import torch
@@ -118,7 +118,7 @@ def main():
               f"{metrics['elapsed_seconds']:.1f}s | forwards {metrics['evaluations']} | "
               f"backwards {metrics['backward_calls']}", flush=True)
 
-    print(f"Starting {preset}; real backward gradients, fixed full-objective validation", flush=True)
+    print(f"Starting {preset}; target <= {args.threshold}; real backward gradients, fixed full-objective validation", flush=True)
     best, metrics = optimize_style(ttl, lambda value, index: measure(value, dp, index), len(prompts),
         iterations=args.iterations, threshold=args.threshold, rate=args.learning_rate,
         validation_interval=args.validation_interval, on_step=on_step, on_best=on_best)

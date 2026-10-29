@@ -6,6 +6,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+from unittest.mock import patch, Mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from serve_mps import Handler, ThreadingHTTPServer, JOBS
@@ -59,6 +60,24 @@ class LocalServerTests(unittest.TestCase):
                 self.assertEqual(error.exception.code, 404)
             finally:
                 JOBS.pop("test")
+
+    def test_custom_threshold_reaches_extractor_command_and_invalid_values_are_rejected(self):
+        headers = {"Origin": self.base, "X-Supertonic-Request": "1"}
+        for value in ("-1", "nan", "inf"):
+            request = urllib.request.Request(self.base + f"/api/start?threshold={value}", data=b"audio", headers=headers)
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                urllib.request.urlopen(request)
+            self.assertEqual(error.exception.code, 400)
+        with tempfile.TemporaryDirectory() as temp, patch('serve_mps.OUTPUTS', Path(temp)), \
+                patch('serve_mps.subprocess.Popen', return_value=Mock(poll=lambda: 0)) as launch:
+            request = urllib.request.Request(self.base + "/api/start?threshold=0.075", data=b"audio", headers=headers)
+            with urllib.request.urlopen(request) as response:
+                identifier = json.load(response)["id"]
+            try:
+                command = launch.call_args.args[0]
+                self.assertEqual(command[command.index("--threshold") + 1], "0.075")
+            finally:
+                JOBS.pop(identifier)
 
 
 if __name__ == "__main__":

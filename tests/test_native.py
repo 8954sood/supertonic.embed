@@ -42,6 +42,17 @@ class NativeOptimizerTests(unittest.TestCase):
         self.assertEqual(report["status"], "threshold reached")
         self.assertEqual(report["backward_calls"], 0)
 
+    def test_lower_custom_target_does_not_stop_at_the_old_default(self):
+        _, report = optimize_style(torch.tensor([[[1., 0.]]]),
+            lambda x, i: x.sum() * 0 + 0.2, 2, threshold=0.05, iterations=1)
+        self.assertEqual(report["target_loss"], 0.05)
+        self.assertEqual(report["backward_calls"], 1)
+        self.assertEqual(report["status"], "iteration limit")
+        self.assertGreater(report["best_loss"], report["target_loss"])
+        for target in (-1, float('nan'), float('inf')):
+            with self.assertRaises(ValueError):
+                optimize_style(torch.tensor([[[1., 0.]]]), lambda x, i: x.sum(), 1, threshold=target)
+
     def test_cancel_retains_published_best_and_never_returns_unvalidated_candidate(self):
         saved = []
         def on_step(e):

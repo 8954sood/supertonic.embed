@@ -26,8 +26,12 @@ the input audio, run log, live progress, best style, final style/report and prev
 These local files persist after cancellation/restart and are excluded from Git.
 The server permits one extraction at a time; stopping it interrupts an active run.
 
-Maximum timbre iterations **0** means continue until the fixed five-prompt mean
-loss is ≤ 0.24 or the user cancels. A plateau notice never silently stops it.
+The **target loss** field accepts any finite nonnegative value (default 0.24),
+including lower targets such as 0.1 or 0.05. Maximum timbre iterations **0** means
+continue until the fixed five-prompt mean reaches the selected target or the user
+cancels. A plateau notice never silently stops it. The target is fixed for each
+run, displayed in progress and recorded in saved metadata/reports. Lower loss
+does not by itself establish intelligibility or voice quality.
 The best-style download is available before duration recovery and remains after
 cancellation. Bounded experiments explicitly report an iteration limit when the
 target is missed. Skipping duration retains the starting duration style and marks
@@ -38,6 +42,8 @@ the output partial. The server is for local use and binds only to `127.0.0.1`.
 ```sh
 .venv/bin/python src/run_extract_style_mps.py examples/01.wav --out styles/my-voice
 ```
+
+Use `--threshold 0.05` to set a custom target on the command line.
 
 Useful bounded experiments:
 

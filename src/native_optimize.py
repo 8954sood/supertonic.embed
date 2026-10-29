@@ -10,7 +10,7 @@ def optimize_style(initial, objective, prompt_count, *, iterations=0, threshold=
                    on_step=lambda event: None, on_best=lambda value, event: None):
     if iterations < 0 or validation_interval < 1 or prompt_count < 1 or recovery_patience < 1:
         raise ValueError("Invalid optimizer settings")
-    if not math.isfinite(threshold) or not math.isfinite(rate) or rate <= 0:
+    if not math.isfinite(threshold) or threshold < 0 or not math.isfinite(rate) or rate <= 0:
         raise ValueError("Invalid threshold or learning rate")
     x = initial.detach().clone()
     if not torch.isfinite(x).all() or torch.any(x.norm(dim=-1) < 1e-8):
@@ -40,6 +40,7 @@ def optimize_style(initial, objective, prompt_count, *, iterations=0, threshold=
 
     def event(**extra):
         return {"step": steps, "initial_loss": initial_loss, "best_loss": best_loss,
+                "target_loss": threshold,
                 "best_prompt_losses": list(best_prompt_losses), "evaluations": evaluations,
                 "backward_calls": backward_calls, "improvements": improvements,
                 "recoveries": recoveries, "learning_rate": optimizer.param_groups[0]["lr"],

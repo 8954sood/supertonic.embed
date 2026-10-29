@@ -1,6 +1,7 @@
 """Loopback-only web UI for the native MPS extractor. Run with python src/serve_mps.py."""
 import argparse
 import json
+import math
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import signal
@@ -84,9 +85,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             iterations = int(query.get("iterations", ["0"])[0])
             duration = int(query.get("duration", ["100"])[0])
+            threshold = float(query.get("threshold", ["0.24"])[0])
             length = int(self.headers.get("Content-Length", "0"))
             if not 0 <= iterations <= 10000 or not 1 <= duration <= 1000 or not 0 < length <= 32 * 1024 * 1024:
                 raise ValueError()
+            if not math.isfinite(threshold) or threshold < 0:
+                return self.respond(400, {"error": "목표 손실은 0 이상의 유한한 숫자여야 합니다."})
         except ValueError:
             return self.respond(400, {"error": "Invalid settings or file size (max 32 MiB)"})
         with LOCK:
@@ -101,7 +105,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(400, {"error": "Incomplete audio upload"})
             audio.write_bytes(body)
             command = [sys.executable, "-u", str(ROOT / "src/run_extract_style_mps.py"), str(audio),
-                       "--out", str(directory), "--iterations", str(iterations), "--duration-iterations", str(duration)]
+                       "--out", str(directory), "--iterations", str(iterations), "--duration-iterations", str(duration),
+                       "--threshold", str(threshold)]
             if query.get("skip_duration", ["0"])[0] == "1":
                 command.append("--skip-duration")
             log_path = directory / "run.log"
