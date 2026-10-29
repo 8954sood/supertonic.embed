@@ -238,3 +238,10 @@ __marimo__/
 # explaining how to get them is tracked.
 /models/*
 !/models/README.md
+
+# Browser build and locally prepared weights
+web/node_modules/
+web/dist/
+web/public/models/
+.venv/
+/webgpu-verification.jpg

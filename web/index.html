@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Supertonic · WebGPU 스타일 추출</title>
+<style>
+body{font:16px/1.7 system-ui,sans-serif;max-width:800px;margin:48px auto;padding:0 24px;background:#10151b;color:#e6edf3}h1{line-height:1.3}label{display:block;margin:20px 0}input{font:inherit;margin:6px 0;max-width:100%;background:#1d2733;color:inherit;border:1px solid #526276;padding:8px}input[type=url]{width:95%}button,a.download{font:inherit;background:#8be4bc;color:#10281d;border:0;border-radius:7px;padding:10px 18px;cursor:pointer;margin:4px}button:disabled{opacity:.4;cursor:default}.note{color:#b9c7d5}pre{background:#1d2733;padding:16px;white-space:pre-wrap;max-height:300px;overflow:auto}audio{display:block;width:100%;margin:20px 0}a{color:#8be4bc}
+</style>
+<h1>음성에서 목소리 스타일 추출</h1>
+<p>참조 음성을 선택하면 이 브라우저에서 WebGPU로 처리하고 Supertonic 스타일 JSON을 만듭니다. 선택한 음성은 서버로 전송하지 않습니다.</p>
+<p class="note">실험용 SPSA 방식입니다. 원본 CUDA 역전파 방식과 추출 품질·속도는 검증되지 않았습니다. 수백 MB의 모델과 충분한 GPU 메모리가 필요하며, 일부 연산은 CPU에서 실행될 수 있습니다. 사용 권한이 있는 음성을 선택하세요.</p>
+<label>모델 폴더 URL <input id="models" type="url" value="/models" required></label>
+<label>참조 음성 (0.3–15초) <input id="audio" type="file" accept="audio/*"></label>
+<label>음색 최적화 최대 횟수 (0 = 손실 0.24 이하까지 무제한) <input id="iterations" type="number" min="0" max="10000" value="0"></label>
+<label>속도 보정 단계별 최대 횟수 <input id="duration" type="number" min="1" max="1000" value="100"></label>
+<button id="start">스타일 추출</button><button id="cancel" disabled>취소</button>
+<p id="status" role="status" aria-live="polite">모델 준비 후 시작할 수 있습니다.</p>
+<pre id="log"></pre><div id="result"></div>
+<script type="module" src="/main.mjs"></script>
+</html>

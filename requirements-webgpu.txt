@@ -1,0 +1,8 @@
+# Offline browser asset preparation only; extraction needs no Python server.
+torch>=2.6,<3
+transformers>=4.46,<5
+huggingface_hub>=0.26
+onnx>=1.17
+onnxruntime>=1.20
+numpy>=1.26
+PyYAML>=6
