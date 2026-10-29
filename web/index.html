@@ -7,13 +7,17 @@ body{font:16px/1.7 system-ui,sans-serif;max-width:800px;margin:48px auto;padding
 </style>
 <h1>음성에서 목소리 스타일 추출</h1>
 <p>참조 음성을 선택하면 이 브라우저에서 WebGPU로 처리하고 Supertonic 스타일 JSON을 만듭니다. 선택한 음성은 서버로 전송하지 않습니다.</p>
-<p class="note">실험용 SPSA 방식입니다. 원본 CUDA 역전파 방식과 추출 품질·속도는 검증되지 않았습니다. 수백 MB의 모델과 충분한 GPU 메모리가 필요하며, 일부 연산은 CPU에서 실행될 수 있습니다. 사용 권한이 있는 음성을 선택하세요.</p>
+<p class="note">실험용 프리셋·행 단위 탐색 방식입니다. 원본 CUDA 역전파 방식과 추출 품질·속도는 검증되지 않았습니다. 수백 MB의 모델과 충분한 GPU 메모리가 필요하며, 일부 연산은 CPU에서 실행될 수 있습니다. 사용 권한이 있는 음성을 선택하세요.</p>
 <label>모델 폴더 URL <input id="models" type="url" value="/models" required></label>
 <label>참조 음성 (0.3–15초) <input id="audio" type="file" accept="audio/*"></label>
 <label>음색 최적화 최대 횟수 (0 = 손실 0.24 이하까지 무제한) <input id="iterations" type="number" min="0" max="10000" value="0"></label>
+<label>선별에서 탈락한 후보도 전체 확인하는 간격 (1 = 매번 확인) <input id="validation" type="number" min="1" max="100" value="10"></label>
+<p class="note">유망한 후보는 즉시 전체 문장으로 검증합니다. 전체 평균이 개선된 후보만 채택하며, 실패하면 최선 스타일을 유지하고 탐색 폭을 조절합니다. 현재 최선 스타일은 실행 중에도 저장할 수 있습니다.</p>
 <label>속도 보정 단계별 최대 횟수 <input id="duration" type="number" min="1" max="1000" value="100"></label>
 <button id="start">스타일 추출</button><button id="cancel" disabled>취소</button>
-<p id="status" role="status" aria-live="polite">모델 준비 후 시작할 수 있습니다.</p>
+<p id="status" role="status" aria-live="polite">음성을 선택하고 스타일 추출을 누르세요. 준비된 모델을 자동으로 불러옵니다.</p>
+<p id="metrics" class="note"></p>
+<a id="best" class="download" hidden>현재 최선 스타일 저장</a>
 <pre id="log"></pre><div id="result"></div>
 <script type="module" src="/main.mjs"></script>
 </html>

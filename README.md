@@ -10,7 +10,7 @@ put it beside `F1.json` … `M5.json` and the model speaks in that voice.
 ## Browser WebGPU extraction (experimental)
 
 A browser path now supports reference audio → WavLM-guided style optimization →
-style JSON and preview WAV, without CUDA or an inference server. It uses SPSA
+style JSON and preview WAV, without CUDA or an inference server. It uses preset-guided blockwise pattern search
 rather than the original backpropagation; equivalent quality/speed is not yet
 established. The default timbre loop runs until loss ≤ 0.24 with no iteration
 limit and can be cancelled. See [setup, behavior and limitations](web/README.md).

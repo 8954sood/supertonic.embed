@@ -245,3 +245,4 @@ web/dist/
 web/public/models/
 .venv/
 /webgpu-verification.jpg
+web/public/benchmark-reference.wav

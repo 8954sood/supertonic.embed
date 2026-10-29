@@ -2,6 +2,8 @@ import * as ort from 'onnxruntime-web/webgpu';
 import wasmURL from 'onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url';
 import {random, normal, parseStyle, styleJSON, statsLoss, resample, optimize,
   nucleiRate, checkAbort, mse} from './math.mjs';
+import {Timings, runSession} from './inference.mjs';
+import {searchTimbre} from './search.mjs';
 
 ort.env.wasm.numThreads = 1;
 ort.env.wasm.wasmPaths = {wasm: wasmURL};
@@ -14,7 +16,9 @@ async function json(url) {
 }
 
 export class Extractor {
-  constructor(log, signal) { this.log = log; this.signal = signal; this.sessions = {}; }
+  constructor(log, signal) {
+    this.log = log; this.signal = signal; this.sessions = {}; this.timings = new Timings();
+  }
   async load(base) {
     if (!isSecureContext || !navigator.gpu) throw Error('WebGPU를 지원하는 브라우저에서 localhost 또는 HTTPS로 열어 주세요.');
     if (!await navigator.gpu.requestAdapter()) throw Error('사용 가능한 WebGPU 어댑터가 없습니다.');
@@ -32,9 +36,11 @@ export class Extractor {
     for (const name of ['duration_predictor', 'text_encoder', 'vector_estimator', 'vocoder', 'wavlm_stats']) {
       checkAbort(this.signal);
       this.log(`${name} 불러오는 중…`);
+      const start = performance.now();
       this.sessions[name] = await ort.InferenceSession.create(url(`${name}.onnx`), {
         executionProviders: ['webgpu', 'wasm'], graphOptimizationLevel: 'all',
       });
+      this.timings.add(`${name}.load`, performance.now() - start);
     }
     this.prompts = [];
     const sizing = this.presets.find(p => p.name === 'M1');
@@ -56,17 +62,10 @@ export class Extractor {
     return {text_ids: new ort.Tensor('int64', BigInt64Array.from(prompt.ids, BigInt), [1, n]),
       text_mask: float(ones(n), [1, 1, n])};
   }
-  async run(name, feeds) {
-    try {
-      checkAbort(this.signal);
-      const output = await this.sessions[name].run(feeds);
-      try {
-        checkAbort(this.signal);
-        // Copy outputs before disposing ORT tensors; no GPU resources survive a call.
-        return Object.fromEntries(await Promise.all(Object.entries(output).map(async ([key, tensor]) =>
-          [key, {data: Float32Array.from(await tensor.getData()), dims: [...tensor.dims]}])));
-      } finally { Object.values(output).forEach(t => t.dispose()); }
-    } finally { Object.values(feeds).forEach(t => t.dispose()); }
+  async run(name, feeds, retained = []) {
+    return runSession(this.sessions[name], name, feeds, {
+      signal: this.signal, timings: this.timings, retained,
+    });
   }
   async seconds(prompt, dp) {
     const result = await this.run('duration_predictor', {...this.textFeeds(prompt), style_dp: float(dp, [1, 8, 16])});
@@ -79,16 +78,24 @@ export class Extractor {
       latent = normal(this.dim * frames, random(this.cfg.seed));
     }
     const text = Object.values(await this.run('text_encoder', {...this.textFeeds(prompt), style_ttl: float(ttl, [1, 50, 256])}))[0];
-    for (let step = 0; step < this.cfg.steps; step++) {
-      const output = await this.run('vector_estimator', {
-        noisy_latent: float(latent, [1, this.dim, frames]), text_emb: float(text.data, text.dims),
-        style_ttl: float(ttl, [1, 50, 256]), latent_mask: float(ones(frames), [1, 1, frames]),
-        text_mask: float(ones(prompt.ids.length), [1, 1, prompt.ids.length]),
-        current_step: float(new Float32Array([step]), [1]),
-        total_step: float(new Float32Array([this.cfg.steps]), [1]),
-      });
-      latent = Object.values(output)[0].data;
-    }
+    // These feeds do not change between denoising steps; keep them alive for
+    // this synthesis only. Latent and current_step remain owned by each run.
+    const shared = {text_emb: float(text.data, text.dims), style_ttl: float(ttl, [1, 50, 256]),
+      latent_mask: float(ones(frames), [1, 1, frames]),
+      text_mask: float(ones(prompt.ids.length), [1, 1, prompt.ids.length]),
+      total_step: float(new Float32Array([this.cfg.steps]), [1])};
+    const retained = Object.values(shared);
+    try {
+      for (let step = 0; step < this.cfg.steps; step++) {
+        const start = performance.now();
+        const output = await this.run('vector_estimator', {...shared,
+          noisy_latent: float(latent, [1, this.dim, frames]),
+          current_step: float(new Float32Array([step]), [1]),
+        }, retained);
+        this.timings.add(`vector_estimator.step_${step}`, performance.now() - start);
+        latent = Object.values(output)[0].data;
+      }
+    } finally { retained.forEach(t => t.dispose()); }
     const output = await this.run('vocoder', {latent: float(latent, [1, this.dim, frames])});
     return Object.values(output)[0].data;
   }
@@ -114,29 +121,55 @@ export class Extractor {
     }
     return rates.length ? rates.reduce((a, b) => a + b) / rates.length : null;
   }
-  async extract(reference, {iterations = 0, durationIterations = 100, onStep = () => {}} = {}) {
+  async extract(reference, {iterations = 0, durationIterations = 100, auditInterval = 10,
+    onStep = () => {}, onBest = () => {}} = {}) {
+    if (!Number.isInteger(auditInterval) || auditInterval < 1 || auditInterval > 100) {
+      throw Error('탐색 확인 간격은 1–100 사이의 정수여야 합니다.');
+    }
+    const started = performance.now();
     const target = await this.statistics(reference);
+    const measure = async (ttl, dp, index) => {
+      const wav = await this.synthesize(this.prompts[index], ttl, dp);
+      const start = performance.now();
+      const audio = resample(wav, this.cfg.sampleRate, 16000);
+      this.timings.add('timbre.resample', performance.now() - start);
+      return statsLoss(await this.statistics(audio), target);
+    };
     let nearest;
     for (const preset of this.presets) {
-      const wav = await this.synthesize(this.prompts[0], preset.ttl, preset.dp);
-      const loss = statsLoss(await this.statistics(resample(wav, this.cfg.sampleRate, 16000)), target);
-      this.log(`${preset.name}: ${loss.toFixed(5)}`);
+      // Select the start on the same objective used for acceptance and stopping.
+      let sum = 0;
+      for (let i = 0; i < this.prompts.length; i++) sum += await measure(preset.ttl, preset.dp, i);
+      const loss = sum / this.prompts.length;
+      this.log(`${preset.name} · 전체 평균: ${loss.toFixed(5)}`);
       if (!nearest || loss < nearest.loss) nearest = {...preset, loss};
     }
-    this.log(`시작 프리셋: ${nearest.name}. SPSA로 음색 최적화 중…`);
-    // Validate against all five prompts, rather than comparing losses from changing sentences.
-    const objective = async (ttl, step) => {
-      const prompts = step === 0 ? this.prompts : [this.prompts[(step - 1) % this.prompts.length]];
-      let sum = 0;
-      for (const prompt of prompts) {
-        const wav = await this.synthesize(prompt, ttl, nearest.dp);
-        sum += statsLoss(await this.statistics(resample(wav, this.cfg.sampleRate, 16000)), target);
-      }
-      return sum / prompts.length;
-    };
-    const timbre = await optimize({initial: nearest.ttl, width: 256, objective, iterations,
-      rate: 2e-4, perturbation: 0.002, signal: this.signal, seed: this.cfg.seed,
-      onStep: e => onStep({stage: 'timbre', ...e}), threshold: 0.24});
+    this.log(`시작 프리셋: ${nearest.name}. 프리셋·행 단위 탐색으로 음색 최적화 중…`);
+    const history = [];
+    const timbre = await searchTimbre({initial: nearest.ttl, width: 256,
+      promptCount: this.prompts.length, guides: this.presets.map(p => p.ttl),
+      objective: async (ttl, index) => {
+        const start = performance.now();
+        const loss = await measure(ttl, nearest.dp, index);
+        this.timings.add('timbre.prompt', performance.now() - start);
+        return loss;
+      }, iterations, signal: this.signal, seed: this.cfg.seed, auditInterval,
+      onBest: best => onBest(styleJSON(best.value, nearest.dp, {
+        method: 'webgpu-pattern-search-v1-experimental', partial: true,
+        duration_recovered: false, preset: nearest.name, timbre_loss: best.loss,
+        timbre_steps: best.steps, best_prompt_losses: best.bestPromptLosses,
+        seed: this.cfg.seed, samplingSteps: this.cfg.steps,
+      })),
+      onStep: e => {
+        const metrics = {...e,
+          lossReductionPerSecond: (e.initialLoss - e.bestLoss) / Math.max(e.elapsedMs / 1000, 1e-9),
+          plateau: e.stepsSinceImprovement >= 100};
+        if (e.validated) {
+          if (history.length >= 1000) history.splice(1, 1);
+          history.push(metrics);
+        }
+        onStep({stage: 'timbre', ...metrics});
+      }, threshold: 0.24});
     let dp = nearest.dp.slice();
     const duration = {status: 'reference unmeasurable', rate_ref: nucleiRate(reference), path: []};
     if (duration.rate_ref) {
@@ -174,13 +207,19 @@ export class Extractor {
         if (bestError < 0.03) duration.status = 'converged';
       } else duration.status = 'starting synthesis unmeasurable';
     }
-    const report = {method: 'webgpu-spsa-experimental', preset: nearest.name,
+    const report = {method: 'webgpu-pattern-search-v1-experimental', preset: nearest.name,
       timbre_loss: timbre.loss, timbre_steps: timbre.steps,
       timbre_status: timbre.loss <= 0.24 ? "threshold reached" : "iteration limit", duration,
-      settings: {iterations, durationIterations, seed: this.cfg.seed, samplingSteps: this.cfg.steps},
+      timbre_metrics: {initialLoss: timbre.initialLoss, improvements: timbre.improvements,
+        objectiveCalls: timbre.objectiveCalls, validationCalls: timbre.validationCalls,
+        evaluations: timbre.evaluations, elapsedMs: timbre.elapsedMs, restarts: timbre.restarts,
+        bestPromptLosses: timbre.bestPromptLosses, history},
+      settings: {iterations, durationIterations, auditInterval, seed: this.cfg.seed, samplingSteps: this.cfg.steps},
       executionProviders: ['webgpu', 'wasm'],
       note: 'Gradient-free approximation. Original CUDA/Adam quality and speed are not established.'};
     const audio = await this.synthesize(this.prompts[0], timbre.value, dp, true);
+    report.performance = {elapsedMs: performance.now() - started, timings: this.timings.snapshot(),
+      note: 'Wall time; run may include transfers and CPU fallback. Readback includes CPU copy. First call is separate; subsequent calls may still compile new shapes. Timers overlap; do not sum stages.'};
     return {style: styleJSON(timbre.value, dp, {extracted_at: new Date().toISOString(), ...report}), report, audio};
   }
   async dispose() {

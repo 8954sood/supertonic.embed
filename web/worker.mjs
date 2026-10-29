@@ -6,6 +6,7 @@ self.onmessage = async ({data}) => {
   try {
     await extractor.load(data.base);
     const result = await extractor.extract(data.reference, {...data.options,
+      onBest: style => self.postMessage({type: 'best', style}),
       onStep: step => self.postMessage({type: 'step', step})});
     await extractor.dispose();
     self.postMessage({type: 'done', result}, [result.audio.buffer]);

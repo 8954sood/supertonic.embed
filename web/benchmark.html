@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Timbre algorithm benchmark</title>
+<h1>Fixed-reference timbre benchmark</h1>
+<p>Local developer benchmark. Copy examples/01.wav to web/public/benchmark-reference.wav first.
+Both algorithms start at M1 with the same five prompts/noise. No duration fitting.</p>
+<label>Prompt-evaluation budget per algorithm <input id="budget" type="number" value="300" min="10"></label>
+<label>First algorithm <select id="order"><option value="legacy">Legacy SPSA</option><option value="pattern">Pattern search</option></select></label>
+<button id="run">Run comparison</button><button id="cancel" disabled>Cancel</button>
+<pre id="progress"></pre><pre id="result"></pre>
+<script type="module" src="/benchmark.mjs"></script></html>

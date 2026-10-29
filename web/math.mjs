@@ -90,21 +90,35 @@ export function checkAbort(signal) { if (signal?.aborted) throw new DOMException
 // Two-sided simultaneous perturbation; both probes must use the same prompt/noise.
 // Acceptance is measured separately; a noisy update is never assumed to be better.
 export async function optimize({initial, width, objective, iterations = 0, rate, perturbation,
-  seed = 42, signal, onStep = () => {}, threshold = -Infinity}) {
+  seed = 42, signal, onStep = () => {}, threshold = -Infinity, validationInterval = 1}) {
+  if (!Number.isInteger(validationInterval) || validationInterval < 1) throw Error('Invalid validation interval');
   checkAbort(signal);
+  const started = performance.now();
+  let objectiveCalls = 0, validationCalls = 0, improvements = 0, lastImprovement = 0;
+  const evaluate = async (value, step) => {
+    checkAbort(signal);
+    objectiveCalls++;
+    if (step === 0) validationCalls++;
+    const loss = await objective(value, step);
+    checkAbort(signal);
+    if (!Number.isFinite(loss)) throw Error('Non-finite objective');
+    return loss;
+  };
   const rng = random(seed), anchor = project(initial, width);
-  let x = anchor, best = x.slice(), bestLoss = await objective(x, 0);
-  if (!Number.isFinite(bestLoss)) throw Error('Non-finite objective');
+  let x = anchor, best = x.slice(), bestLoss = await evaluate(x, 0);
+  const initialLoss = bestLoss;
   const m = new Float32Array(x.length), v = new Float32Array(x.length);
   let steps = 0;
-  onStep({step: 0, loss: bestLoss});
+  const metrics = () => ({initialLoss, bestLoss, objectiveCalls, validationCalls, improvements,
+    stepsSinceImprovement: steps - lastImprovement, elapsedMs: performance.now() - started});
+  onStep({step: 0, loss: bestLoss, validated: true, ...metrics()});
   for (let step = 1; (iterations === 0 || step <= iterations) && bestLoss > threshold; step++) {
     checkAbort(signal);
     const c = perturbation / step ** 0.101;
     const delta = Float32Array.from(x, () => rng() < 0.5 ? -1 : 1);
     const plus = project(x.map((a, i) => a + c * delta[i]), width);
     const minus = project(x.map((a, i) => a - c * delta[i]), width);
-    const p = await objective(plus, step), q = await objective(minus, step);
+    const p = await evaluate(plus, step), q = await evaluate(minus, step);
     const slope = (p - q) / (2 * c);
     if (!Number.isFinite(slope)) throw Error('Non-finite objective');
     const lr = rate / (1 + step / (iterations || 1000)) ** 0.602;
@@ -113,14 +127,18 @@ export async function optimize({initial, width, objective, iterations = 0, rate,
       m[i] = 0.9 * m[i] + 0.1 * g; v[i] = 0.999 * v[i] + 0.001 * g * g;
       return a - lr * (m[i] / (1 - 0.9 ** step)) / (Math.sqrt(v[i] / (1 - 0.999 ** step)) + 1e-8);
     }), width);
-    const loss = await objective(x, 0); // fixed validation prompts, comparable across iterations
-    if (!Number.isFinite(loss)) throw Error('Non-finite objective');
-    if (loss < bestLoss) { bestLoss = loss; best = x.slice(); }
+    // Always validate the final bounded candidate. Probes cannot accept a best
+    // style or stop the run: only the full, fixed validation objective can.
+    const validated = step % validationInterval === 0 || step === iterations;
+    const loss = validated ? await evaluate(x, 0) : null;
+    if (validated && loss < bestLoss) {
+      bestLoss = loss; best = x.slice(); improvements++; lastImprovement = step;
+    }
     steps = step;
-    onStep({step, loss, bestLoss});
+    onStep({step, loss, validated, probeLoss: (p + q) / 2, ...metrics()});
     await new Promise(resolve => setTimeout(resolve, 0));
   }
-  return {value: best, loss: bestLoss, steps};
+  return {value: best, loss: bestLoss, steps, ...metrics()};
 }
 export function wavBlob(samples, sr = 44100) {
   const buffer = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buffer);
