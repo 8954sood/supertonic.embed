@@ -24,7 +24,7 @@ def read_style(path):
                  for k in ("style_ttl", "style_dp"))
 
 
-def write_style(path, style_ttl, style_dp, source_file=None):
+def write_style(path, style_ttl, style_dp, source_file=None, metadata=None):
     """Write a style the way SupertonicTTS ships them, so it drops in beside the presets."""
     payload = {
         "style_ttl": {"data": style_ttl.detach().cpu().numpy().tolist(),
@@ -35,6 +35,7 @@ def write_style(path, style_ttl, style_dp, source_file=None):
                      "source_sample_rate": SR, "target_sample_rate": SR,
                      "extracted_at": datetime.now().isoformat()},
     }
+    payload["metadata"].update(metadata or {})
     directory = os.path.dirname(path)
     if directory:
         os.makedirs(directory, exist_ok=True)

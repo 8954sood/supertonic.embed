@@ -5,8 +5,6 @@ Pooling over time makes the loss independent of what is said, and it is the same
 pooling x-vector speaker embeddings use. Layer 4 is where Chiu et al. (2025)
 found speaker identity peaks; HuggingFace's hidden_states[4] is that layer.
 """
-import os
-
 import librosa
 import torch
 import torch.nn.functional as F
@@ -14,28 +12,17 @@ from transformers import WavLMModel
 
 from config import DEVICE, LAYER, SR, WAVLM_SR
 
-# Behind a TLS-intercepting proxy the HuggingFace client cannot download the
-# weights; verification is turned off for that client only.
-os.environ.pop("SSL_CERT_FILE", None)
-os.environ.pop("CURL_CA_BUNDLE", None)
-os.environ.pop("REQUESTS_CA_BUNDLE", None)
-import httpx  # noqa: E402
-
-_verified_client = httpx.Client
-
-
-class _UnverifiedClient(_verified_client):
-    def __init__(self, *args, **kwargs):
-        kwargs["verify"] = False
-        super().__init__(*args, **kwargs)
-
-
-httpx.Client = _UnverifiedClient
-
-
-def load_wavlm():
+def load_wavlm(trim=False):
     """WavLM-Large, frozen."""
-    model = WavLMModel.from_pretrained("microsoft/wavlm-large").to(DEVICE).eval()
+    model = WavLMModel.from_pretrained("microsoft/wavlm-large").eval()
+    if trim:
+        # hidden_states[LAYER] is before the original encoder's final norm.
+        # Truncation keeps the same statistic and avoids unused later blocks.
+        if model.config.do_stable_layer_norm:
+            model.encoder.layer_norm = torch.nn.Identity()
+        model.encoder.layers = model.encoder.layers[:LAYER]
+        model.config.num_hidden_layers = LAYER
+    model = model.to(DEVICE)
     for p in model.parameters():
         p.requires_grad_(False)
     return model

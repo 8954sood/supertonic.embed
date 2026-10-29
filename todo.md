@@ -32,6 +32,12 @@ Last updated: 2026-10-30 (Asia/Seoul)
 
 ## Priority 1: preserve work and measure convergence
 
+- Native MPS alternative added on `codex/mps-extraction`: real projected-Adam
+  gradients, fixed full-objective validation, atomic best saves, CLI and loopback
+  web UI. See `docs/MPS.md` for checks and bounded results. CPU/MPS numerical
+  contracts pass; controlled WebGPU/MPS comparison with identical input/noise,
+  target attainment, quality and peak-memory measurements remain pending.
+
 - [ ] Export the best style and optimizer state periodically, before target loss
   is reached; support downloading the current best without waiting for duration
   recovery. Best-style download is implemented; optimizer-state export is pending.

@@ -4,7 +4,7 @@ Turn a WAV file into a SupertonicTTS voice style, without the unreleased style
 encoder. The output is a style JSON in the same format as the shipped presets:
 put it beside `F1.json` … `M5.json` and the model speaks in that voice.
 
-**Requirements:** NVIDIA GPU with CUDA. The default settings need about 10 GB;
+**Original batch extractor requirements:** NVIDIA GPU with CUDA. The default settings need about 10 GB;
 `timbre.batch: 1` in `src/config.yaml` runs in 2.5 GB.
 
 ## Browser WebGPU extraction (experimental)
@@ -14,6 +14,18 @@ style JSON and preview WAV, without CUDA or an inference server. It uses preset-
 rather than the original backpropagation; equivalent quality/speed is not yet
 established. The default timbre loop runs until loss ≤ 0.24 with no iteration
 limit and can be cancelled. See [setup, behavior and limitations](web/README.md).
+
+## Native Mac MPS extraction (experimental)
+
+Apple Silicon Macs can use a separate Python path with true backpropagation,
+fixed five-prompt validation, live best-style saving and a local web interface:
+
+```sh
+.venv/bin/python -m pip install -r requirements-mps.txt
+.venv/bin/python src/serve_mps.py
+```
+
+Open `http://127.0.0.1:8765/`. See [MPS setup, CLI and measured limitations](docs/MPS.md).
 
 ## Demo
 
